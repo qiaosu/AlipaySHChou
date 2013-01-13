@@ -14,13 +14,15 @@
 		<div id="content">
 
 <script type="text/paperscript" canvas="canvas-1">
-//0: stop; 1: active;
-var state = true; 
+//false: stop; true: active;
+var state = true;
+//false: disable; true: enable; 
+var chou = false;
 var balls = [];
 var group = new Group();
 
 var Ball = Base.extend({
-	initialize: function(point, vector) {
+	initialize: function(point, vector, name) {
 		if (!vector || vector.isZero()) {
 			this.vector = Point.random() * 5;
 		} else {
@@ -34,6 +36,7 @@ var Ball = Base.extend({
 		//this.radius = 50 * Math.random() + 30;
 		this.radius = 50 * 0.2 + 20;
 		this.createPaths();
+		this.item.name = name;
 		group.addChild(this.item);
 	},
 
@@ -56,8 +59,9 @@ var Ball = Base.extend({
 		this.item = new Group([compound, overlay]);
 	},
 
-	iterate: function() {
-		var size = view.size;
+	iterate: function(i) {
+		if (this.item.visible == false) return false;
+		var size = view.size, isTarget = false;
 		this.vector.y += this.gravity;
 		this.vector.x *= 0.99;
 		var pre = this.point + this.vector;
@@ -72,16 +76,38 @@ var Ball = Base.extend({
 		var max = Point.max(this.radius, this.point + this.vector);
 		this.item.position = this.point = Point.min(max, size - this.radius);
 		this.item.rotate(this.vector.x / 2);
+		if (chou) {
+			isTarget = this.checkTarget(this.item);
+		}
+		if (isTarget) {
+			state = !state;
+			this.item.visible = false;
+			alert(this.item.name + '中奖啦!');
+		}
+	},
+
+	checkTarget: function(item){
+		var target = {
+			left: 0,
+			top: 0,
+			right: 1600,
+			bottom: 40
+		};
+		if (item.position.y < target.bottom && target.left <= item.position.x && item.position.x <= target.right) {
+			return true;
+		}
+		return false;
 	}
 });
 
-for (var i = 0; i < 50; i++) {
+for (var i = 0; i < 20; i++) {
 	var position = Point.random() * (view.size / [1, 2]),
 		vector = (Point.random() - [0.5, 0]) * [50, 100];
-	console.log(position);
-	var ball = new Ball(position, vector);
+	var ball = new Ball(position, vector, '樵苏'+i);
 	balls.push(ball);
 }
+
+console.log(group);
 
 var textItem = new PointText(20, 30);
 textItem.fillColor = 'black';
@@ -92,24 +118,43 @@ function onMouseDrag(event) {
 	lastDelta = event.delta;
 }
 
+/*
 function onMouseUp(event) {
 	var ball = new Ball(event.point, lastDelta);
 	balls.push(ball);
 	lastDelta = null;
 }
+*/
 
 function onFrame() {
 	if (state == true){
 		for (var i = 0, l = balls.length; i < l; i++)
-			balls[i].iterate();
+			balls[i].iterate(i);
 	}
 }
 
-$(document).addEvent('keyup', function(e){
-	if (e.code == 32) {
-		state = !state;
-	}
-})
+function createTargetBoxAndShow(){
+	var _dom = document.createElement('div');
+	_dom.id = 'target';
+	_dom.innerText = '兑奖区';
+	$('#content').$.appendChild(_dom);
+}
+
+(function(){
+	var _t = setTimeout(function(){
+		createTargetBoxAndShow();
+		chou = true;
+	}, 3000);
+
+	$(document).addEvent('keyup', function(e){
+		if (e.code == 32) {
+			state = !state;
+		}
+	})
+})();
+
+
+
 </script>
 
 <div class="canvas">
