@@ -96,15 +96,33 @@ var Ball = Base.extend({
 			top: 0,
 			right: $('#target').$.offsetLeft + 300,
 			bottom: 40
-		};
-		if (item.position.y < target.bottom && target.left <= item.position.x && item.position.x <= target.right) {
+		}, isCollision = false;
+		var w = 300, h = 40, r = 20, rx, ry;
+		rx = Math.abs((item.position.x + r) - (target.left + w/2));
+		ry = Math.abs((item.position.y + r) - (target.top + h/2));
+		isCollision = this.computeCollision(w, h, r, rx, ry);
+		return isCollision;
+		/*if (item.position.y < target.bottom && target.left <= item.position.x && item.position.x <= target.right) {
 			return true;
 		}
-		return false;
-	}
+		return false;*/
+	},
+
+	/**
+	 * w：矩形的宽，h：矩形的高，r：圆形半径，
+	 * rx：圆形中心与矩形中心相对坐标X，ry：圆形中心与矩形中心相对坐标Y
+	 */
+	computeCollision: function(w, h, r, rx, ry) {
+        var dx = Math.min(rx, w * 0.5);
+        var dx1 = Math.max(dx, -w * 0.5);
+        var dy = Math.min(ry, h * 0.5);
+        var dy1 = Math.max(dy, -h * 0.5);
+        return (dx1 - rx) * (dx1 - rx) + (dy1 - ry) * (dy1 - ry) <= r * r;
+    }
+
 });
 
-for (var i = 0; i < 10; i++) {
+for (var i = 0; i < 60; i++) {
 	var position = Point.random() * (view.size / [1, 2]),
 		vector = (Point.random() - [0.5, 0]) * [50, 100];
 	var ball = new Ball(position, vector, '樵苏'+i);
