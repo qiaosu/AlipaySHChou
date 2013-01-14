@@ -31,7 +31,8 @@ var Ball = Base.extend({
 		this.point = point;
 		this.dampen = 0.4;
 		//this.gravity = 3;
-		this.gravity = 15 - view.size._height / 100 * 1.4;
+		this.gravity = 13 - view.size._height / 100 * 1.4;
+		this.gravity = this.gravity > 1 ? this.gravity : 1;
 		this.bounce = -0.6;
 		// 大小
 		//this.radius = 50 * Math.random() + 30;
@@ -49,7 +50,6 @@ var Ball = Base.extend({
 		]);
 		var color = new HsbColor(Math.random() * 360, 1, 1);
 		var gradient = new Gradient([color, '#888888'], 'radial');
-		console.log(gradient);
 		compound.children[0].fillColor = new GradientColor(gradient, this.point,
 				this.point + this.radius, overlayPos);
 		var overlay = new Path.Circle(overlayPos, this.radius / 3);
@@ -63,7 +63,7 @@ var Ball = Base.extend({
 
 	iterate: function(i) {
 		if (this.item.visible == false) return false;
-		var size = view.size, isTarget = false;
+		var size = view.size, collisionX = null;
 		this.vector.y += this.gravity;
 		this.vector.x *= 0.99;
 		var pre = this.point + this.vector;
@@ -74,14 +74,18 @@ var Ball = Base.extend({
 				this.vector = Point.random() * [150, 100] + [-75, 20];
 			this.vector.y *= this.bounce;
 		}
+		if (pre.y < this.radius) {
+			collisionX = this.computeCollision(this.point, pre);
+		} else {
+			collisionX = null;
+		}
 
-		var max = Point.max(this.radius, this.point + this.vector);
+		var next = this.point + this.vector;
+		var max = Point.max(this.radius, next);
 		this.item.position = this.point = Point.min(max, size - this.radius);
 		this.item.rotate(this.vector.x / 2);
-		if (chou) {
-			isTarget = this.checkTarget(this.item);
-		}
-		if (isTarget) {
+		
+		if (collisionX && targetRect.left <= collisionX && collisionX <= targetRect.right) {
 			state = !state;
 			this.item.visible = false;
 			textWinner.content += this.item.name;
@@ -90,46 +94,21 @@ var Ball = Base.extend({
 		}
 	},
 
-	checkTarget: function(item){
-		var target = {
-			left: $('#target').$.offsetLeft,
-			top: 0,
-			right: $('#target').$.offsetLeft + 300,
-			bottom: 40
-		}, isCollision = false;
-		var w = 300, h = 40, r = 20, rx, ry;
-		rx = Math.abs((item.position.x + r) - (target.left + w/2));
-		ry = Math.abs((item.position.y + r) - (target.top + h/2));
-		isCollision = this.computeCollision(w, h, r, rx, ry);
-		return isCollision;
-		/*if (item.position.y < target.bottom && target.left <= item.position.x && item.position.x <= target.right) {
-			return true;
-		}
-		return false;*/
-	},
-
-	/**
-	 * w：矩形的宽，h：矩形的高，r：圆形半径，
-	 * rx：圆形中心与矩形中心相对坐标X，ry：圆形中心与矩形中心相对坐标Y
-	 */
-	computeCollision: function(w, h, r, rx, ry) {
-        var dx = Math.min(rx, w * 0.5);
-        var dx1 = Math.max(dx, -w * 0.5);
-        var dy = Math.min(ry, h * 0.5);
-        var dy1 = Math.max(dy, -h * 0.5);
-        return (dx1 - rx) * (dx1 - rx) + (dy1 - ry) * (dy1 - ry) <= r * r;
+	computeCollision: function(prev, next) {
+		var x = Math.abs(prev.y - this.radius) / (Math.abs(next.y - this.radius) + Math.abs(prev.y - this.radius))
+		var collisionTarget = prev.x + (next.x - prev.x) * x
+        console.log('碰撞', prev, next, collisionTarget);
+        return collisionTarget;
     }
 
 });
 
-for (var i = 0; i < 60; i++) {
+for (var i = 0; i < 10; i++) {
 	var position = Point.random() * (view.size / [1, 2]),
 		vector = (Point.random() - [0.5, 0]) * [50, 100];
 	var ball = new Ball(position, vector, '樵苏'+i);
 	balls.push(ball);
 }
-
-console.log(group);
 
 var textItem = new PointText(20, 30);
 textItem.fillColor = 'black';
@@ -139,18 +118,19 @@ var textWinner = new PointText(20, 60);
 textWinner.fillColor = 'black';
 textWinner.content = 'Winner: '
 
-var lastDelta;
-function onMouseDrag(event) {
-	lastDelta = event.delta;
+var textTarget, targetRect, targetPath;
+function prepareTarget(){
+	textTarget = new PointText(view.size.width/2-20, 20);
+	textTarget.fillColor = 'black';
+	textTarget.content = '兑奖区'
+
+	var targetP = new Point(view.size.width/2-150, 0);
+	var targetS = new Size(300, 5);
+	targetRect = new Rectangle(targetP, targetS);
+	targetPath = new Path.Rectangle(targetRect);
+	targetPath.fillColor = '#D26911';
 }
 
-/*
-function onMouseUp(event) {
-	var ball = new Ball(event.point, lastDelta);
-	balls.push(ball);
-	lastDelta = null;
-}
-*/
 
 function onFrame() {
 	if (state == true){
@@ -159,18 +139,10 @@ function onFrame() {
 	}
 }
 
-function createTargetBoxAndShow(){
-	var _dom = document.createElement('div');
-	_dom.id = 'target';
-	_dom.innerText = '兑奖区';
-	$('#content').$.appendChild(_dom);
-}
-
 (function(){
-	var _t = setTimeout(function(){
-		createTargetBoxAndShow();
-		chou = true;
-	}, 3000);
+	setTimeout(function(){
+		prepareTarget();
+	}, 1000);
 
 	$(document).addEvent('keyup', function(e){
 		if (e.code == 32) {
@@ -181,18 +153,17 @@ function createTargetBoxAndShow(){
 	DomEvent.add(window, {
 		resize: function(event) {
 			balls.each(function(item, i){
-				item.gravity = 15 - view.size._height / 100 * 1.4;
+				item.gravity = 13 - view.size._height / 100 * 1.4;
+				item.gravity = item.gravity > 1 ? item.gravity : 1;
 			});
 		}
 	});
 })();
 
-
-
 </script>
 
 <div class="canvas">
-	<canvas resize="true" id="canvas-1" style="background:#f2f2f2"></canvas>
+	<canvas resize="true" id="canvas-1" style="background:#f2f2f2" width="100%"></canvas>
 </div>
 		</div>
 	</div>

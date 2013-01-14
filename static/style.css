@@ -794,17 +794,3 @@ ul.tutorial-index ul {
 #main ul.tutorial-index {
 	margin-bottom: 29px;
 }
-
-#target {
-	position: absolute;
-	z-index: 999;
-	width: 300px;
-	left: 50%;
-	top: 0;
-	height: 40px;
-	line-height: 40px;
-	margin-left: -150px;
-	background: #D26911;
-	color: white;
-	text-align: center;
-}
