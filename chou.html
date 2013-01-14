@@ -45,13 +45,14 @@ var Ball = Base.extend({
 		var overlayPos = this.point + this.radius / 8;
 		var compound = new CompoundPath([
 			new Path.Circle(this.point, this.radius),
-			new Path.Circle(overlayPos, this.radius / 2)
+			new Path.Circle(overlayPos, this.radius / 3)
 		]);
-		var color = new HsbColor(Math.random() * 360, 0.9, 1);
-		var gradient = new Gradient([color, 'black'], 'radial');
+		var color = new HsbColor(Math.random() * 360, 1, 1);
+		var gradient = new Gradient([color, '#888888'], 'radial');
+		console.log(gradient);
 		compound.children[0].fillColor = new GradientColor(gradient, this.point,
 				this.point + this.radius, overlayPos);
-		var overlay = new Path.Circle(overlayPos, this.radius / 2);
+		var overlay = new Path.Circle(overlayPos, this.radius / 3);
 		var overlayColor = color.clone();
 		var fullOverlay = color.clone();
 		overlayColor.alpha = 0.3;
@@ -103,7 +104,7 @@ var Ball = Base.extend({
 	}
 });
 
-for (var i = 0; i < 100; i++) {
+for (var i = 0; i < 10; i++) {
 	var position = Point.random() * (view.size / [1, 2]),
 		vector = (Point.random() - [0.5, 0]) * [50, 100];
 	var ball = new Ball(position, vector, '樵苏'+i);
