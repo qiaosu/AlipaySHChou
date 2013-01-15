@@ -17,7 +17,7 @@
 var data = ['王勃','杨炯','卢照邻','骆宾王','陈子昂','张九龄','贺知章','张旭','孟浩然','王维','高适','岑参','王昌龄','王之涣','崔颢','李颀','李白','杜甫','刘长卿','韦应物','李益','卢纶','白居易','刘禹锡','柳宗元','李贺','元稹','张籍','王建','杜牧','李商隐','温庭筠','段成式','韦庄'];
 
 //false: stop; true: active;
-var state = true;
+var state = false;
 //false: disable; true: enable; 
 var chou = false;
 var balls = [];
@@ -84,16 +84,18 @@ var Ball = Base.extend({
 
 		var next = this.point + this.vector;
 		var max = Point.max(this.radius, next);
-		this.item.position = this.point = Point.min(max, size - this.radius);
-		this.item.rotate(this.vector.x / 2);
 		
 		if (collisionX && targetRect && targetRect.left <= collisionX && collisionX <= targetRect.right) {
 			state = !state;
-			this.item.visible = false;
+			this.item.position = this.point = Point.create(collisionX, this.radius);
+			//this.item.visible = false;
 			textWinner.content += this.item.name;
 			textWinner.content += ' ';
-			alert(this.item.name + '中奖啦!');
+			//alert(this.item.name + '中奖啦!');
+		} else {
+			this.item.position = this.point = Point.min(max, size - this.radius);
 		}
+		this.item.rotate(this.vector.x / 2);
 	},
 
 	computeCollision: function(prev, next) {
@@ -106,8 +108,10 @@ var Ball = Base.extend({
 });
 
 for (var i = 0; i < data.length; i++) {
-	var position = Point.random() * (view.size / [1, 2]),
-		vector = (Point.random() - [0.5, 0]) * [50, 100];
+	var position = Point.random();
+	//position.y = 0.5;
+	position = position * (view.size);
+	var vector = (Point.random() - [0, 0.5]) * [10, 20];
 	var ball = new Ball(position, vector, data[i]);
 	balls.push(ball);
 }
