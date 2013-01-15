@@ -1,0 +1,173 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="chrome=1">
+<title>Alipayshchou by qiaosu</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<link rel="stylesheet" href="static/style.css">
+<link rel="stylesheet" href="static/paperscript.css">
+<script src="static/bootstrap.js"></script>
+<script src="static/paper.js"></script>
+</head>
+<body class="fullscreen">
+	<div id="main">
+		<div id="content">
+
+<script type="text/paperscript" canvas="canvas-1">
+var data = ['王勃','杨炯','卢照邻','骆宾王','陈子昂','张九龄','贺知章','张旭','孟浩然','王维','高适','岑参','王昌龄','王之涣','崔颢','李颀','李白','杜甫','刘长卿','韦应物','李益','卢纶','白居易','刘禹锡','柳宗元','李贺','元稹','张籍','王建','杜牧','李商隐','温庭筠','段成式','韦庄'];
+
+//false: stop; true: active;
+var state = true;
+//false: disable; true: enable; 
+var chou = false;
+var balls = [];
+var group = new Group();
+
+var Ball = Base.extend({
+	initialize: function(point, vector, name) {
+		if (!vector || vector.isZero()) {
+			this.vector = Point.random() * 5;
+		} else {
+			this.vector = vector * 2;
+		}
+		this.point = point;
+		this.dampen = 0.4;
+		//this.gravity = 3;
+		this.gravity = 13 - view.size._height / 100 * 1.3;
+		this.gravity = this.gravity > 1 ? this.gravity : 1;
+		this.bounce = -0.6;
+		// 大小
+		//this.radius = 50 * Math.random() + 30;
+		this.radius = 50 * 0.2 + 10;
+		this.createPaths();
+		this.item.name = name;
+		group.addChild(this.item);
+	},
+
+	createPaths: function() {
+		var overlayPos = this.point + this.radius / 8;
+		var compound = new CompoundPath([
+			new Path.Circle(this.point, this.radius),
+			new Path.Circle(overlayPos, this.radius / 3)
+		]);
+		var color = new HsbColor(Math.random() * 360, 1, 1);
+		var gradient = new Gradient([color, '#888888'], 'radial');
+		compound.children[0].fillColor = new GradientColor(gradient, this.point,
+				this.point + this.radius, overlayPos);
+		var overlay = new Path.Circle(overlayPos, this.radius / 3);
+		var overlayColor = color.clone();
+		var fullOverlay = color.clone();
+		overlayColor.alpha = 0.3;
+		var overlayGradient = new Gradient([new RgbColor(1, 1, 1, 0.5), new RgbColor(1, 1, 1, 1)]);
+		overlay.fillColor = new GradientColor(overlayGradient, overlayPos, overlayPos + this.radius / 2);
+		this.item = new Group([compound, overlay]);
+	},
+
+	iterate: function(i) {
+		if (this.item.visible == false) return false;
+		var size = view.size, collisionX = null;
+		this.vector.y += this.gravity;
+		this.vector.x *= 0.99;
+		var pre = this.point + this.vector;
+		if (pre.x < this.radius || pre.x > size.width - this.radius)
+			this.vector.x *= -this.dampen; 
+		if (pre.y < this.radius || pre.y > size.height - this.radius) {
+			if (Math.abs(this.vector.x) < 3)
+				this.vector = Point.random() * [150, 100] + [-75, 20];
+			this.vector.y *= this.bounce;
+		}
+		if (pre.y < this.radius) {
+			collisionX = this.computeCollision(this.point, pre);
+		} else {
+			collisionX = null;
+		}
+
+		var next = this.point + this.vector;
+		var max = Point.max(this.radius, next);
+		this.item.position = this.point = Point.min(max, size - this.radius);
+		this.item.rotate(this.vector.x / 2);
+		
+		if (collisionX && targetRect && targetRect.left <= collisionX && collisionX <= targetRect.right) {
+			state = !state;
+			this.item.visible = false;
+			textWinner.content += this.item.name;
+			textWinner.content += ' ';
+			alert(this.item.name + '中奖啦!');
+		}
+	},
+
+	computeCollision: function(prev, next) {
+		var x = Math.abs(prev.y - this.radius) / (Math.abs(next.y - this.radius) + Math.abs(prev.y - this.radius))
+		var collisionTarget = prev.x + (next.x - prev.x) * x
+        console.log('碰撞', prev, next, collisionTarget);
+        return collisionTarget;
+    }
+
+});
+
+for (var i = 0; i < data.length; i++) {
+	var position = Point.random() * (view.size / [1, 2]),
+		vector = (Point.random() - [0.5, 0]) * [50, 100];
+	var ball = new Ball(position, vector, data[i]);
+	balls.push(ball);
+}
+
+var textItem = new PointText(20, 30);
+textItem.fillColor = 'black';
+textItem.content = 'Press "space" to stop or continue.'
+
+var textWinner = new PointText(20, 60);
+textWinner.fillColor = 'black';
+textWinner.content = 'Winner: '
+
+var textTarget, targetRect, targetPath;
+function prepareTarget(){
+	textTarget = new PointText(view.size.width/2-20, 20);
+	textTarget.fillColor = 'black';
+	textTarget.content = '兑奖区'
+
+	var targetP = new Point(view.size.width/2-150, 0);
+	var targetS = new Size(300, 5);
+	targetRect = new Rectangle(targetP, targetS);
+	targetPath = new Path.Rectangle(targetRect);
+	targetPath.fillColor = '#D26911';
+}
+
+function onFrame() {
+	if (state == true){
+		for (var i = 0, l = balls.length; i < l; i++)
+			balls[i].iterate(i);
+	}
+}
+
+(function(){
+	setTimeout(function(){
+		prepareTarget();
+	}, 1000);
+
+	$(document).addEvent('keyup', function(e){
+		if (e.code == 32) {
+			state = !state;
+		}
+	})
+
+	DomEvent.add(window, {
+		resize: function(event) {
+			balls.each(function(item, i){
+				item.gravity = 13 - view.size._height / 100 * 1.3;
+				item.gravity = item.gravity > 1 ? item.gravity : 1;
+			});
+		}
+	});
+})();
+
+</script>
+
+<div class="canvas">
+	<canvas resize="true" id="canvas-1" style="background:#f2f2f2" width="100%"></canvas>
+</div>
+		</div>
+	</div>
+</body>
+</html>
