@@ -16,11 +16,10 @@
 <script type="text/paperscript" canvas="canvas-1">
 var data = ['王勃','杨炯','卢照邻','骆宾王','陈子昂','张九龄','贺知章','张旭','孟浩然','王维','高适','岑参','王昌龄','王之涣','崔颢','李颀','李白','杜甫','刘长卿','韦应物','李益','卢纶','白居易','刘禹锡','柳宗元','李贺','元稹','张籍','王建','杜牧','李商隐','温庭筠','段成式','韦庄'];
 
-//false: stop; true: active;
-var state = false;
-//false: disable; true: enable; 
-var chou = false;
+//0: stop; 1: active; 2:win
+var state = 0;
 var balls = [];
+var winner = null;
 var group = new Group();
 
 var Ball = Base.extend({
@@ -36,6 +35,10 @@ var Ball = Base.extend({
 		this.gravity = 13 - view.size._height / 100 * 1.3;
 		this.gravity = this.gravity > 1 ? this.gravity : 1;
 		this.bounce = -0.6;
+		this.color = new HsbColor(Math.random() * 360, 1, 1);
+		this.animate = {
+			n: 50
+		};
 		// 大小
 		//this.radius = 50 * Math.random() + 30;
 		this.radius = 50 * 0.2 + 10;
@@ -50,7 +53,7 @@ var Ball = Base.extend({
 			new Path.Circle(this.point, this.radius),
 			new Path.Circle(overlayPos, this.radius / 3)
 		]);
-		var color = new HsbColor(Math.random() * 360, 1, 1);
+		var color = this.color;
 		var gradient = new Gradient([color, '#888888'], 'radial');
 		compound.children[0].fillColor = new GradientColor(gradient, this.point,
 				this.point + this.radius, overlayPos);
@@ -86,7 +89,8 @@ var Ball = Base.extend({
 		var max = Point.max(this.radius, next);
 		
 		if (collisionX && targetRect && targetRect.left <= collisionX && collisionX <= targetRect.right) {
-			state = !state;
+			winner = this;
+			state = 2;
 			this.item.position = this.point = Point.create(collisionX, this.radius);
 			//this.item.visible = false;
 			textWinner.content += this.item.name;
@@ -103,13 +107,38 @@ var Ball = Base.extend({
 		var collisionTarget = prev.x + (next.x - prev.x) * x
         console.log('碰撞', prev, next, collisionTarget);
         return collisionTarget;
+    },
+
+    celebrate: function(){
+    	if (this.animate.n > 0) {
+    		var mid = Point.create(view.size.width/2, view.size.height/2);
+    		if (!this.animate.vector) {
+    			this.animate.vector = (mid - this.point) / [50, 50];
+    		}
+    		this.item.position = this.point = this.point + this.animate.vector;
+    		this.item.rotate(this.animate.vector.x / 2);
+    		this.item.scale(1.05);
+    		this.item.insertAbove(group);
+    		if (winner.nameText) winner.nameText.remove();
+    		winner.nameText = new PointText(this.item.position - [this.item.name.length*60/2, -20]);
+			winner.nameText.content = this.item.name;
+			winner.nameText.characterStyle = {
+			    fontSize: 50-this.animate.n,
+			    fillColor: 'black',
+			};
+		}
+    	this.animate.n = this.animate.n - 1;
+    	if (this.animate.n == 0) {
+    		console.log(this.item.position.x, this.item.position.y, mid.x, mid.y);
+    	}
     }
 
 });
 
 for (var i = 0; i < data.length; i++) {
 	var position = Point.random();
-	//position.y = 0.5;
+	position.x = 0;
+	position.y = 0.5;
 	position = position * (view.size);
 	var vector = (Point.random() - [0, 0.5]) * [10, 20];
 	var ball = new Ball(position, vector, data[i]);
@@ -118,7 +147,7 @@ for (var i = 0; i < data.length; i++) {
 
 var textItem = new PointText(20, 30);
 textItem.fillColor = 'black';
-textItem.content = 'Press "space" to stop or continue.'
+textItem.content = 'Press "space" to stop or continue. Press "," and "." to control winning difficult.'
 
 var textWinner = new PointText(20, 60);
 textWinner.fillColor = 'black';
@@ -138,9 +167,12 @@ function prepareTarget(){
 }
 
 function onFrame() {
-	if (state == true){
+	if (state == 1){
 		for (var i = 0, l = balls.length; i < l; i++)
 			balls[i].iterate(i);
+	}
+	if (state == 2){
+		winner.celebrate();
 	}
 }
 
@@ -151,7 +183,21 @@ function onFrame() {
 
 	$(document).addEvent('keyup', function(e){
 		if (e.code == 32) {
-			state = !state;
+			if (state < 2) {
+				state = Math.abs(state -1);
+			}
+		}
+		if (e.code == 188) {
+			balls.each(function(item, i){
+				item.gravity = item.gravity - 0.5;
+				item.gravity = item.gravity > 1 ? item.gravity : 1;
+			});
+		}
+		if (e.code == 190) {
+			balls.each(function(item, i){
+				item.gravity = item.gravity + 0.5;
+				item.gravity = item.gravity > 1 ? item.gravity : 1;
+			});
 		}
 	})
 
