@@ -32,6 +32,8 @@ var state = 0,
 	winner = null,
 	group = new Group(),
 	targetGroup, 
+	spaceText,
+	difficultText,
 	introBox;
 
 helper.createText = function(options){
@@ -116,7 +118,7 @@ var Ball = Base.extend({
 		var next = this.point + this.vector;
 		var max = Point.max(this.radius, next);
 		
-		if (collisionX && targetGroup && targetGroup.position.x <= collisionX && collisionX <= targetGroup.position.x + 300) {
+		if (collisionX && targetGroup && view.size.width/2 -150 <= collisionX && collisionX <= view.size.width/2 + 150) {
 			winner = this;
 			state = 4;
 			this.item.position = this.point = Point.create(collisionX, this.radius);
@@ -196,7 +198,7 @@ function init(){
 		balls.push(ball);
 	}
 
-	var spaceText = helper.createText({
+	spaceText = helper.createText({
 		x: 20,
 		y: 30,
 		color: '#666',
@@ -204,7 +206,7 @@ function init(){
 	})
 	spaceText.visible = false;
 
-	var difficultText = helper.createText({
+	difficultText = helper.createText({
 		x: 20,
 		y: 50,
 		color: '#666',
