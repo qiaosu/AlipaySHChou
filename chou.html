@@ -16,11 +16,19 @@
 <script type="text/paperscript" canvas="canvas-1">
 var data = ['王勃','杨炯','卢照邻','骆宾王','陈子昂','张九龄','贺知章','张旭','孟浩然','王维','高适','岑参','王昌龄','王之涣','崔颢','李颀','李白','杜甫','刘长卿','韦应物','李益','卢纶','白居易','刘禹锡','柳宗元','李贺','元稹','张籍','王建','杜牧','李商隐','温庭筠','段成式','韦庄'];
 
-//false: stop; true: active;
-var state = true;
-//false: disable; true: enable; 
-var chou = false;
+/*
+ * 0: init; 重置/初始化
+ * 1: start; 初始动画阶段
+ * 2: active; 出现兑奖区,开始抽奖
+ * 3: stop; 暂停
+ * 4: win_start; 
+ * 5: win_end;
+ * 6: scene_end;
+ * 7: over;
+ */
+var state = 0;
 var balls = [];
+var winner = null;
 var group = new Group();
 
 var Ball = Base.extend({
@@ -36,6 +44,11 @@ var Ball = Base.extend({
 		this.gravity = 13 - view.size._height / 100 * 1.3;
 		this.gravity = this.gravity > 1 ? this.gravity : 1;
 		this.bounce = -0.6;
+		this.color = new HsbColor(Math.random() * 360, 1, 1);
+		this.animate = {
+			n: 50,
+			preN: Math.abs(Math.random()*50)
+		};
 		// 大小
 		//this.radius = 50 * Math.random() + 30;
 		this.radius = 50 * 0.2 + 10;
@@ -50,7 +63,7 @@ var Ball = Base.extend({
 			new Path.Circle(this.point, this.radius),
 			new Path.Circle(overlayPos, this.radius / 3)
 		]);
-		var color = new HsbColor(Math.random() * 360, 1, 1);
+		var color = this.color;
 		var gradient = new Gradient([color, '#888888'], 'radial');
 		compound.children[0].fillColor = new GradientColor(gradient, this.point,
 				this.point + this.radius, overlayPos);
@@ -65,6 +78,10 @@ var Ball = Base.extend({
 
 	iterate: function(i) {
 		if (this.item.visible == false) return false;
+		if (this.animate.preN > 0) {
+			this.animate.preN--;
+			return false;
+		}
 		var size = view.size, collisionX = null;
 		this.vector.y += this.gravity;
 		this.vector.x *= 0.99;
@@ -84,16 +101,16 @@ var Ball = Base.extend({
 
 		var next = this.point + this.vector;
 		var max = Point.max(this.radius, next);
-		this.item.position = this.point = Point.min(max, size - this.radius);
-		this.item.rotate(this.vector.x / 2);
 		
 		if (collisionX && targetRect && targetRect.left <= collisionX && collisionX <= targetRect.right) {
-			state = !state;
-			this.item.visible = false;
-			textWinner.content += this.item.name;
-			textWinner.content += ' ';
-			alert(this.item.name + '中奖啦!');
+			winner = this;
+			state = 4;
+			this.item.position = this.point = Point.create(collisionX, this.radius);
+			//this.item.visible = false;
+		} else {
+			this.item.position = this.point = Point.min(max, size - this.radius);
 		}
+		this.item.rotate(this.vector.x / 2);
 	},
 
 	computeCollision: function(prev, next) {
@@ -101,26 +118,80 @@ var Ball = Base.extend({
 		var collisionTarget = prev.x + (next.x - prev.x) * x
         console.log('碰撞', prev, next, collisionTarget);
         return collisionTarget;
+    },
+
+    celebrate: function(){
+    	if (this.animate.n > 0) {
+    		var mid = Point.create(view.size.width/2, view.size.height/2);
+    		if (!this.animate.vector) {
+    			this.animate.vector = (mid - this.point) / [50, 50];
+    		}
+    		this.item.position = this.point = this.point + this.animate.vector;
+    		this.item.rotate(this.animate.vector.x / 2);
+    		this.item.scale(1.05);
+    		this.item.insertAbove(group);
+    		if (winner.nameText) winner.nameText.remove();
+    		winner.nameText = new PointText(this.item.position - [this.item.name.length*60/2, -20]);
+			winner.nameText.content = this.item.name;
+			winner.nameText.characterStyle = {
+			    fontSize: 50-this.animate.n,
+			    fillColor: 'black',
+			};
+		}
+    	this.animate.n = this.animate.n - 1;
+    	if (this.animate.n == 0) {
+    		console.log(this.item.position.x, this.item.position.y, mid.x, mid.y);
+    		for (var i = 0, l = balls.length; i < l; i++) {
+				balls[i].animate = {
+					n: 50,
+					preN: Math.abs(Math.random()*50)
+				};
+			}
+			winner.animate.preN = 0;
+			spaceText.content = 'Press "space" to clear the scene.';
+			spaceText.visible = true;
+			state = 5;
+    	}
+    },
+
+    goTrash: function(i){
+    	if (this.animate.preN > 0) {
+			this.animate.preN--;
+			return false;
+		}
+		if (this.animate.n > 0) {
+	    	this.item.rotate(5);
+			this.item.scale(1.5);
+		}
+		this.animate.n = this.animate.n - 1;
+		if (this.animate.n == 0) {
+			this.item.visible = false;
+			console.log(i, this.item.name, balls[i])
+			balls.splice(i, 1);
+			console.log(balls, balls.length);
+		}
     }
 
 });
 
 for (var i = 0; i < data.length; i++) {
-	var position = Point.random() * (view.size / [1, 2]),
-		vector = (Point.random() - [0.5, 0]) * [50, 100];
+	var position = Point.create(-20, -20);
+	var vector = (Point.random() - [0, 0.5]) * [10, 20];
 	var ball = new Ball(position, vector, data[i]);
 	balls.push(ball);
 }
 
-var textItem = new PointText(20, 30);
-textItem.fillColor = 'black';
-textItem.content = 'Press "space" to stop or continue.'
+var spaceText = new PointText(20, 30);
+spaceText.fillColor = '#666';
+spaceText.content = 'Press "space" to stop or continue.';
+spaceText.visible = false;
 
-var textWinner = new PointText(20, 60);
-textWinner.fillColor = 'black';
-textWinner.content = 'Winner: '
+var difficultText = new PointText(20, 50);
+difficultText.fillColor = '#666';
+difficultText.content = 'Press "," and "." to control winning difficult.';
+difficultText.visible = false;
 
-var textTarget, targetRect, targetPath;
+var textTarget, targetRect, targetPath, introBox;
 function prepareTarget(){
 	textTarget = new PointText(view.size.width/2-20, 20);
 	textTarget.fillColor = 'black';
@@ -133,21 +204,102 @@ function prepareTarget(){
 	targetPath.fillColor = '#D26911';
 }
 
+function introFrame(){
+	var rect = new Rectangle();
+	rect.left = view.size.width/2 - 240;
+	rect.right = view.size.width/2 + 240;
+	rect.bottom = view.size.height/2 + 30;
+	rect.top = view.size.height/2 - 30;
+	rect = new Path.RoundRectangle(rect, new Size(15, 15));
+	var rectStyle = {
+	    strokeColor: '#ccc',
+	    fillColor: 'white',
+	    strokeWidth: 4
+	};
+	rect.style = rectStyle;
+	var rectText = new PointText(view.size.width/2, view.size.height/2+10);
+	var textStyle = {
+		fillColor: 'black',
+		fontSize: 18
+	}
+	rectText.characterStyle = textStyle;
+	rectText.paragraphStyle.justification = 'center';
+	rectText.content = 'Press "enter" to load the balls.';
+	introBox = new Group([rect, rectText]);
+	introBox.opacity = 0.5;
+}
+
+function gameOver(){
+	textTarget.visible = false;
+	targetPath.visible = false;
+	spaceText.visible = false;
+}
+
 function onFrame() {
-	if (state == true){
+	if (state == 1 || state == 2){
+		spaceText.visible = true;
+		difficultText.visible = true;
 		for (var i = 0, l = balls.length; i < l; i++)
 			balls[i].iterate(i);
+	}
+	if (state == 4){
+		spaceText.visible = false;
+		difficultText.visible = false;
+		winner.celebrate();
+	}
+	if (state == 6){
+		for (var i = 0, l = balls.length; i < l; i++) {
+			if (balls[i]){
+				balls[i].goTrash(i);
+			}
+		}
+		if (balls.length == 0) {
+			gameOver();
+			state = 7;
+		}	
 	}
 }
 
 (function(){
-	setTimeout(function(){
-		prepareTarget();
-	}, 1000);
+	introFrame();
 
 	$(document).addEvent('keyup', function(e){
+
+		if (e.code == 13) {
+			if (state == 0){
+				state = 1;
+				introBox.visible = false;
+				introBox.lastChild.content = 'Press "enter" again to start the game.';
+				setTimeout(function(){
+					introBox.visible = true;
+				}, 3000);
+			} else if (state == 1 && introBox.visible){
+				prepareTarget();
+				introBox.visible = false;
+				state = 2;
+			} else {
+				return;
+			}
+		}
 		if (e.code == 32) {
-			state = !state;
+			if (state == 2 || state == 3) {
+				state = state == 2 ? 3 : 2;
+			}
+			if (spaceText.visible == true && state == 5) {
+				state = 6;
+			}
+		}
+		if (e.code == 188) {
+			balls.each(function(item, i){
+				item.gravity = item.gravity - 0.5;
+				item.gravity = item.gravity > 1 ? item.gravity : 1;
+			});
+		}
+		if (e.code == 190) {
+			balls.each(function(item, i){
+				item.gravity = item.gravity + 0.5;
+				item.gravity = item.gravity > 1 ? item.gravity : 1;
+			});
 		}
 	})
 
