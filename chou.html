@@ -30,7 +30,9 @@ var state = 0,
 	helper = {},
 	balls = [],
 	winner = null,
-	group = new Group();
+	group = new Group(),
+	targetGroup, 
+	introBox;
 
 helper.createText = function(options){
 	var text = new PointText(options.x, options.y);
@@ -186,30 +188,32 @@ var Ball = Base.extend({
 
 });
 
-for (var i = 0; i < data.length; i++) {
-	var position = Point.create(-20, -20);
-	var vector = (Point.random() - [0, 0.5]) * [10, 20];
-	var ball = new Ball(position, vector, data[i]);
-	balls.push(ball);
+function init(){
+	for (var i = 0; i < data.length; i++) {
+		var position = Point.create(-20, -20);
+		var vector = (Point.random() - [0, 0.5]) * [10, 20];
+		var ball = new Ball(position, vector, data[i]);
+		balls.push(ball);
+	}
+
+	var spaceText = helper.createText({
+		x: 20,
+		y: 30,
+		color: '#666',
+		content: 'Press "space" to stop or continue.'
+	})
+	spaceText.visible = false;
+
+	var difficultText = helper.createText({
+		x: 20,
+		y: 50,
+		color: '#666',
+		content: 'Press "," and "." to control winning difficult.'
+	})
+	difficultText.visible = false;
 }
 
-var spaceText = helper.createText({
-	x: 20,
-	y: 30,
-	color: '#666',
-	content: 'Press "space" to stop or continue.'
-})
-spaceText.visible = false;
 
-var difficultText = helper.createText({
-	x: 20,
-	y: 50,
-	color: '#666',
-	content: 'Press "," and "." to control winning difficult.'
-})
-difficultText.visible = false;
-
-var targetGroup, introBox;
 function prepareTarget(){
 	var textTarget = helper.createText({
 		x: view.size.width/2-20,
@@ -255,6 +259,7 @@ function introFrame(){
 function gameOver(){
 	targetGroup.visible = false;
 	spaceText.visible = false;
+	state = 7;
 }
 
 function onFrame() {
@@ -275,15 +280,14 @@ function onFrame() {
 				balls[i].goTrash(i);
 			}
 		}
-		if (balls.length == 0) {
+		if (balls.length == 0) 
 			gameOver();
-			state = 7;
-		}	
 	}
 }
 
 (function(){
 	introFrame();
+	init();
 
 	$(document).addEvent('keyup', function(e){
 
