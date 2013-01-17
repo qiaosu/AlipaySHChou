@@ -21,15 +21,28 @@ var data = ['王勃','杨炯','卢照邻','骆宾王','陈子昂','张九龄','�
  * 1: start; 初始动画阶段
  * 2: active; 出现兑奖区,开始抽奖
  * 3: stop; 暂停
- * 4: win_start; 
- * 5: win_end;
- * 6: scene_end;
+ * 4: win_start; 中奖动画开始
+ * 5: win_end; 中奖动画结束
+ * 6: scene_end; 场景结束
  * 7: over;
  */
-var state = 0;
-var balls = [];
-var winner = null;
-var group = new Group();
+var state = 0,
+	helper = {},
+	balls = [],
+	winner = null,
+	group = new Group();
+
+helper.createText = function(options){
+	var text = new PointText(options.x, options.y);
+	var style = {};
+	if (options.color) style.fillColor = options.color;
+	if (options.fontSize) style.fontSize = options.fontSize;
+	text.characterStyle = style;
+	if (options.textAlign)
+		text.paragraphStyle.justification = options.textAlign;
+	text.content = options.content;
+	return text;
+}
 
 var Ball = Base.extend({
 	initialize: function(point, vector, name) {
@@ -40,7 +53,7 @@ var Ball = Base.extend({
 		}
 		this.point = point;
 		this.dampen = 0.4;
-		//this.gravity = 3;
+		// difficult
 		this.gravity = 13 - view.size._height / 100 * 1.3;
 		this.gravity = this.gravity > 1 ? this.gravity : 1;
 		this.bounce = -0.6;
@@ -50,7 +63,6 @@ var Ball = Base.extend({
 			preN: Math.abs(Math.random()*50)
 		};
 		// 大小
-		//this.radius = 50 * Math.random() + 30;
 		this.radius = 50 * 0.2 + 10;
 		this.createPaths();
 		this.item.name = name;
@@ -102,11 +114,10 @@ var Ball = Base.extend({
 		var next = this.point + this.vector;
 		var max = Point.max(this.radius, next);
 		
-		if (collisionX && targetRect && targetRect.left <= collisionX && collisionX <= targetRect.right) {
+		if (collisionX && targetGroup && targetGroup.position.x <= collisionX && collisionX <= targetGroup.position.x + 300) {
 			winner = this;
 			state = 4;
 			this.item.position = this.point = Point.create(collisionX, this.radius);
-			//this.item.visible = false;
 		} else {
 			this.item.position = this.point = Point.min(max, size - this.radius);
 		}
@@ -140,18 +151,21 @@ var Ball = Base.extend({
 		}
     	this.animate.n = this.animate.n - 1;
     	if (this.animate.n == 0) {
-    		console.log(this.item.position.x, this.item.position.y, mid.x, mid.y);
-    		for (var i = 0, l = balls.length; i < l; i++) {
-				balls[i].animate = {
-					n: 50,
-					preN: Math.abs(Math.random()*50)
-				};
-			}
-			winner.animate.preN = 0;
-			spaceText.content = 'Press "space" to clear the scene.';
-			spaceText.visible = true;
-			state = 5;
+    		this.celebrateEnd();
     	}
+    },
+
+    celebrateEnd: function(){
+		for (var i = 0, l = balls.length; i < l; i++) {
+			balls[i].animate = {
+				n: 50,
+				preN: Math.abs(Math.random()*50)
+			};
+		}
+		winner.animate.preN = 0;
+		spaceText.content = 'Press "space" to clear the scene.';
+		spaceText.visible = true;
+		state = 5;
     },
 
     goTrash: function(i){
@@ -166,9 +180,7 @@ var Ball = Base.extend({
 		this.animate.n = this.animate.n - 1;
 		if (this.animate.n == 0) {
 			this.item.visible = false;
-			console.log(i, this.item.name, balls[i])
 			balls.splice(i, 1);
-			console.log(balls, balls.length);
 		}
     }
 
@@ -181,27 +193,38 @@ for (var i = 0; i < data.length; i++) {
 	balls.push(ball);
 }
 
-var spaceText = new PointText(20, 30);
-spaceText.fillColor = '#666';
-spaceText.content = 'Press "space" to stop or continue.';
+var spaceText = helper.createText({
+	x: 20,
+	y: 30,
+	color: '#666',
+	content: 'Press "space" to stop or continue.'
+})
 spaceText.visible = false;
 
-var difficultText = new PointText(20, 50);
-difficultText.fillColor = '#666';
-difficultText.content = 'Press "," and "." to control winning difficult.';
+var difficultText = helper.createText({
+	x: 20,
+	y: 50,
+	color: '#666',
+	content: 'Press "," and "." to control winning difficult.'
+})
 difficultText.visible = false;
 
-var textTarget, targetRect, targetPath, introBox;
+var targetGroup, introBox;
 function prepareTarget(){
-	textTarget = new PointText(view.size.width/2-20, 20);
-	textTarget.fillColor = 'black';
-	textTarget.content = '兑奖区'
+	var textTarget = helper.createText({
+		x: view.size.width/2-20,
+		y: 20,
+		color: 'black',
+		content: '兑奖区'
+	});
 
 	var targetP = new Point(view.size.width/2-150, 0);
 	var targetS = new Size(300, 5);
-	targetRect = new Rectangle(targetP, targetS);
-	targetPath = new Path.Rectangle(targetRect);
+	var targetRect = new Rectangle(targetP, targetS);
+	var targetPath = new Path.Rectangle(targetRect);
 	targetPath.fillColor = '#D26911';
+	targetGroup = new Group([textTarget, targetPath]);
+	console.log(targetGroup.position.x, targetGroup.position.x+300);
 }
 
 function introFrame(){
@@ -217,21 +240,20 @@ function introFrame(){
 	    strokeWidth: 4
 	};
 	rect.style = rectStyle;
-	var rectText = new PointText(view.size.width/2, view.size.height/2+10);
-	var textStyle = {
-		fillColor: 'black',
-		fontSize: 18
-	}
-	rectText.characterStyle = textStyle;
-	rectText.paragraphStyle.justification = 'center';
-	rectText.content = 'Press "enter" to load the balls.';
+	var rectText = helper.createText({
+		x: view.size.width/2,
+		y: view.size.height/2+10,
+		color: 'black',
+		fontSize: 18,
+		textAlign: 'center',
+		content: 'Press "enter" to load the balls.'
+	});
 	introBox = new Group([rect, rectText]);
 	introBox.opacity = 0.5;
 }
 
 function gameOver(){
-	textTarget.visible = false;
-	targetPath.visible = false;
+	targetGroup.visible = false;
 	spaceText.visible = false;
 }
 
@@ -265,41 +287,45 @@ function onFrame() {
 
 	$(document).addEvent('keyup', function(e){
 
-		if (e.code == 13) {
-			if (state == 0){
-				state = 1;
-				introBox.visible = false;
-				introBox.lastChild.content = 'Press "enter" again to start the game.';
-				setTimeout(function(){
-					introBox.visible = true;
-				}, 3000);
-			} else if (state == 1 && introBox.visible){
-				prepareTarget();
-				introBox.visible = false;
-				state = 2;
-			} else {
-				return;
-			}
-		}
-		if (e.code == 32) {
-			if (state == 2 || state == 3) {
-				state = state == 2 ? 3 : 2;
-			}
-			if (spaceText.visible == true && state == 5) {
-				state = 6;
-			}
-		}
-		if (e.code == 188) {
-			balls.each(function(item, i){
-				item.gravity = item.gravity - 0.5;
-				item.gravity = item.gravity > 1 ? item.gravity : 1;
-			});
-		}
-		if (e.code == 190) {
-			balls.each(function(item, i){
-				item.gravity = item.gravity + 0.5;
-				item.gravity = item.gravity > 1 ? item.gravity : 1;
-			});
+		switch (e.code) {
+			case 13:
+				if (state == 0){
+					state = 1;
+					introBox.visible = false;
+					introBox.lastChild.content = 'Press "enter" again to start the game.';
+					setTimeout(function(){
+						introBox.visible = true;
+					}, 3000);
+				} else if (state == 1 && introBox.visible){
+					prepareTarget();
+					introBox.visible = false;
+					state = 2;
+				} else {
+					return;
+				}
+				break;
+			case 32:
+				if (state == 2 || state == 3) {
+					state = state == 2 ? 3 : 2;
+				}
+				if (spaceText.visible == true && state == 5) {
+					state = 6;
+				}
+				break;
+			case 188:
+				balls.each(function(item, i){
+					item.gravity = item.gravity - 0.5;
+					item.gravity = item.gravity > 1 ? item.gravity : 1;
+				});
+				break;
+			case 190:
+				balls.each(function(item, i){
+					item.gravity = item.gravity + 0.5;
+					item.gravity = item.gravity > 1 ? item.gravity : 1;
+				});
+				break;
+			default:
+				return false;
 		}
 	})
 
