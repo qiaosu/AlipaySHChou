@@ -10,8 +10,8 @@
 <script src="static/paper.js"></script>
 </head>
 <body class="fullscreen">
-	<div id="main">
-		<div id="content">
+    <div id="main">
+        <div id="content">
 
 <script type="text/paperscript" canvas="canvas-1">
 var data = ['王勃','杨炯','卢照邻','骆宾王','陈子昂','张九龄','贺知章','张旭','孟浩然','王维','高适','岑参','王昌龄','王之涣','崔颢','李颀','李白','杜甫','刘长卿','韦应物','李益','卢纶','白居易','刘禹锡','柳宗元','李贺','元稹','张籍','王建','杜牧','李商隐','温庭筠','段成式','韦庄'];
@@ -27,330 +27,356 @@ var data = ['王勃','杨炯','卢照邻','骆宾王','陈子昂','张九龄','�
  * 7: over;
  */
 var state = 0,
-	helper = {},
-	balls = [],
-	winner = null,
-	group = new Group(),
-	targetGroup, 
-	spaceText,
-	difficultText,
-	introBox;
+    helper = {},
+    balls = [],
+    winner = null,
+    group = new Group(),
+    targetGroup, 
+    spaceText,
+    difficultText,
+    introBox,
+    scenes,
+    _pos = view.size;
 
 helper.createText = function(options){
-	var text = new PointText(options.x, options.y);
-	var style = {};
-	if (options.color) style.fillColor = options.color;
-	if (options.fontSize) style.fontSize = options.fontSize;
-	text.characterStyle = style;
-	if (options.textAlign)
-		text.paragraphStyle.justification = options.textAlign;
-	text.content = options.content;
-	return text;
-}
+    var text = new PointText(options.x, options.y);
+    var style = {};
+    if (options.color) {style.fillColor = options.color;}
+    if (options.fontSize) {style.fontSize = options.fontSize;}
+    text.characterStyle = style;
+    if (options.textAlign) {text.paragraphStyle.justification = options.textAlign;}
+    text.content = options.content;
+    return text;
+};
 
 var Ball = Base.extend({
-	initialize: function(point, vector, name) {
-		if (!vector || vector.isZero()) {
-			this.vector = Point.random() * 5;
-		} else {
-			this.vector = vector * 2;
-		}
-		this.point = point;
-		this.dampen = 0.4;
-		// difficult
-		this.gravity = 13 - view.size._height / 100 * 1.3;
-		this.gravity = this.gravity > 1 ? this.gravity : 1;
-		this.bounce = -0.6;
-		this.color = new HsbColor(Math.random() * 360, 1, 1);
-		this.animate = {
-			n: 50,
-			preN: Math.abs(Math.random()*50)
-		};
-		// 大小
-		this.radius = 50 * 0.2 + 10;
-		this.createPaths();
-		this.item.name = name;
-		group.addChild(this.item);
-	},
+    initialize: function(point, vector, name) {
+        if (!vector || vector.isZero()) {
+            this.vector = Point.random() * 5;
+        } else {
+            this.vector = vector * 2;
+        }
+        this.point = point;
+        this.dampen = 0.4;
+        // difficult
+        this.gravity = 13 - _pos.height / 100 * 1.3;
+        this.gravity = this.gravity > 1 ? this.gravity : 1;
+        this.bounce = -0.6;
+        this.color = new HsbColor(Math.random() * 360, 1, 1);
+        this.animate = {
+            n: 50,
+            preN: Math.abs(Math.random()*50)
+        };
+        // 大小
+        this.radius = 50 * 0.2 + 10;
+        this.createPaths();
+        this.item.name = name;
+        group.addChild(this.item);
+    },
 
-	createPaths: function() {
-		var overlayPos = this.point + this.radius / 8;
-		var compound = new CompoundPath([
-			new Path.Circle(this.point, this.radius),
-			new Path.Circle(overlayPos, this.radius / 3)
-		]);
-		var color = this.color;
-		var gradient = new Gradient([color, '#888888'], 'radial');
-		compound.children[0].fillColor = new GradientColor(gradient, this.point,
-				this.point + this.radius, overlayPos);
-		var overlay = new Path.Circle(overlayPos, this.radius / 3);
-		var overlayColor = color.clone();
-		var fullOverlay = color.clone();
-		overlayColor.alpha = 0.3;
-		var overlayGradient = new Gradient([new RgbColor(1, 1, 1, 0.5), new RgbColor(1, 1, 1, 1)]);
-		overlay.fillColor = new GradientColor(overlayGradient, overlayPos, overlayPos + this.radius / 2);
-		this.item = new Group([compound, overlay]);
-	},
+    createPaths: function() {
+        var overlayPos = this.point + this.radius / 8;
+        var compound = new CompoundPath([
+            new Path.Circle(this.point, this.radius),
+            new Path.Circle(overlayPos, this.radius / 3)
+        ]);
+        var color = this.color;
+        var gradient = new Gradient([color, '#888888'], 'radial');
+        compound.children[0].fillColor = new GradientColor(gradient, this.point,
+                this.point + this.radius, overlayPos);
+        var overlay = new Path.Circle(overlayPos, this.radius / 3);
+        var overlayColor = color.clone();
+        var fullOverlay = color.clone();
+        overlayColor.alpha = 0.3;
+        var overlayGradient = new Gradient([new RgbColor(1, 1, 1, 0.5), new RgbColor(1, 1, 1, 1)]);
+        overlay.fillColor = new GradientColor(overlayGradient, overlayPos, overlayPos + this.radius / 2);
+        this.item = new Group([compound, overlay]);
+    },
 
-	iterate: function(i) {
-		if (this.item.visible == false) return false;
-		if (this.animate.preN > 0) {
-			this.animate.preN--;
-			return false;
-		}
-		var size = view.size, collisionX = null;
-		this.vector.y += this.gravity;
-		this.vector.x *= 0.99;
-		var pre = this.point + this.vector;
-		if (pre.x < this.radius || pre.x > size.width - this.radius)
-			this.vector.x *= -this.dampen; 
-		if (pre.y < this.radius || pre.y > size.height - this.radius) {
-			if (Math.abs(this.vector.x) < 3)
-				this.vector = Point.random() * [150, 100] + [-75, 20];
-			this.vector.y *= this.bounce;
-		}
-		if (pre.y < this.radius) {
-			collisionX = this.computeCollision(this.point, pre);
-		} else {
-			collisionX = null;
-		}
+    iterate: function(i) {
+        if (this.item.visible === false) {return false;}
+        if (this.animate.preN > 0) {
+            this.animate.preN--;
+            return false;
+        }
+        var collisionX = null;
+        this.vector.y += this.gravity;
+        this.vector.x *= 0.99;
+        var pre = this.point + this.vector;
+        if (pre.x < this.radius || pre.x > _pos.width - this.radius) {
+            this.vector.x *= -this.dampen; 
+        }
+        if (pre.y < this.radius || pre.y > _pos.height - this.radius) {
+            if (Math.abs(this.vector.x) < 3) {
+                this.vector = Point.random() * [150, 100] + [-75, 20];
+            }
+            this.vector.y *= this.bounce;
+        }
+        if (pre.y < this.radius) {
+            collisionX = this.computeCollision(this.point, pre);
+        } else {
+            collisionX = null;
+        }
 
-		var next = this.point + this.vector;
-		var max = Point.max(this.radius, next);
-		
-		if (collisionX && targetGroup && view.size.width/2 -150 <= collisionX && collisionX <= view.size.width/2 + 150) {
-			winner = this;
-			state = 4;
-			this.item.position = this.point = Point.create(collisionX, this.radius);
-		} else {
-			this.item.position = this.point = Point.min(max, size - this.radius);
-		}
-		this.item.rotate(this.vector.x / 2);
-	},
+        var next = this.point + this.vector;
+        var max = Point.max(this.radius, next);
+        
+        if (collisionX && targetGroup && _pos.width/2 -150 <= collisionX && collisionX <= _pos.width/2 + 150) {
+            this.item.position = this.point = Point.create(collisionX, this.radius);
+            winner = this;
+            scenes.fourth();
+        } else {
+            this.item.position = this.point = Point.min(max, _pos - this.radius);
+        }
+        this.item.rotate(this.vector.x / 2);
+    },
 
-	computeCollision: function(prev, next) {
-		var x = Math.abs(prev.y - this.radius) / (Math.abs(next.y - this.radius) + Math.abs(prev.y - this.radius))
-		var collisionTarget = prev.x + (next.x - prev.x) * x
+    computeCollision: function(prev, next) {
+        var x = Math.abs(prev.y - this.radius) / (Math.abs(next.y - this.radius) + Math.abs(prev.y - this.radius));
+        var collisionTarget = prev.x + (next.x - prev.x) * x;
         console.log('碰撞', prev, next, collisionTarget);
         return collisionTarget;
     },
 
     celebrate: function(){
-    	if (this.animate.n > 0) {
-    		var mid = Point.create(view.size.width/2, view.size.height/2);
-    		if (!this.animate.vector) {
-    			this.animate.vector = (mid - this.point) / [50, 50];
-    		}
-    		this.item.position = this.point = this.point + this.animate.vector;
-    		this.item.rotate(this.animate.vector.x / 2);
-    		this.item.scale(1.05);
-    		this.item.insertAbove(group);
-    		if (winner.nameText) winner.nameText.remove();
-    		winner.nameText = new PointText(this.item.position - [this.item.name.length*60/2, -20]);
-			winner.nameText.content = this.item.name;
-			winner.nameText.characterStyle = {
-			    fontSize: 50-this.animate.n,
-			    fillColor: 'black',
-			};
-		}
-    	this.animate.n = this.animate.n - 1;
-    	if (this.animate.n == 0) {
-    		this.celebrateEnd();
-    	}
+        if (this.animate.n > 0) {
+            var mid = Point.create(_pos.width/2, _pos.height/2);
+            if (!this.animate.vector) {
+                this.animate.vector = (mid - this.point) / [50, 50];
+            }
+            this.item.position = this.point = this.point + this.animate.vector;
+            this.item.rotate(this.animate.vector.x / 2);
+            this.item.scale(1.05);
+            this.item.insertAbove(group);
+            if (winner.nameText) {winner.nameText.remove();}
+            winner.nameText = new PointText(this.item.position - [this.item.name.length*60/2, -20]);
+            winner.nameText.content = this.item.name;
+            winner.nameText.characterStyle = {
+                fontSize: 50-this.animate.n,
+                fillColor: 'black'
+            };
+        }
+        this.animate.n = this.animate.n - 1;
+        if (this.animate.n === 0) {
+            scenes.fifth();
+        }
     },
 
     celebrateEnd: function(){
-		for (var i = 0, l = balls.length; i < l; i++) {
-			balls[i].animate = {
-				n: 50,
-				preN: Math.abs(Math.random()*50)
-			};
-		}
-		winner.animate.preN = 0;
-		spaceText.content = 'Press "space" to clear the scene.';
-		spaceText.visible = true;
-		state = 5;
+        for (var i = 0, l = balls.length; i < l; i++) {
+            balls[i].animate = {
+                n: 50,
+                preN: Math.abs(Math.random()*50)
+            };
+        }
+        winner.animate.preN = 0;
     },
 
     goTrash: function(i){
-    	if (this.animate.preN > 0) {
-			this.animate.preN--;
-			return false;
-		}
-		if (this.animate.n > 0) {
-	    	this.item.rotate(5);
-			this.item.scale(1.5);
-		}
-		this.animate.n = this.animate.n - 1;
-		if (this.animate.n == 0) {
-			this.item.visible = false;
-			balls.splice(i, 1);
-		}
+        if (this.animate.preN > 0) {
+            this.animate.preN--;
+            return false;
+        }
+        if (this.animate.n > 0) {
+            this.item.rotate(5);
+            this.item.scale(1.5);
+        }
+        this.animate.n = this.animate.n - 1;
+        if (this.animate.n === 0) {
+            this.item.visible = false;
+            balls.splice(i, 1);
+        }
     }
 
 });
 
-function init(){
-	for (var i = 0; i < data.length; i++) {
-		var position = Point.create(-20, -20);
-		var vector = (Point.random() - [0, 0.5]) * [10, 20];
-		var ball = new Ball(position, vector, data[i]);
-		balls.push(ball);
-	}
+function sceneInit(){
+    for (var i = 0; i < data.length; i++) {
+        var position = Point.create(-20, -20);
+        var vector = (Point.random() - [0, 0.5]) * [10, 20];
+        var ball = new Ball(position, vector, data[i]);
+        balls.push(ball);
+    }
 
-	spaceText = helper.createText({
-		x: 20,
-		y: 30,
-		color: '#666',
-		content: 'Press "space" to stop or continue.'
-	})
-	spaceText.visible = false;
+    spaceText = helper.createText({
+        x: 20,
+        y: 30,
+        color: '#666',
+        content: 'Press "space" to stop or continue.'
+    });
+    spaceText.visible = false;
 
-	difficultText = helper.createText({
-		x: 20,
-		y: 50,
-		color: '#666',
-		content: 'Press "," and "." to control winning difficult.'
-	})
-	difficultText.visible = false;
+    difficultText = helper.createText({
+        x: 20,
+        y: 50,
+        color: '#666',
+        content: 'Press "," and "." to control winning difficult.'
+    });
+    difficultText.visible = false;
 }
 
 
 function prepareTarget(){
-	var textTarget = helper.createText({
-		x: view.size.width/2-20,
-		y: 20,
-		color: 'black',
-		content: '兑奖区'
-	});
+    var textTarget = helper.createText({
+        x: _pos.width/2-20,
+        y: 20,
+        color: 'black',
+        content: '兑奖区'
+    });
 
-	var targetP = new Point(view.size.width/2-150, 0);
-	var targetS = new Size(300, 5);
-	var targetRect = new Rectangle(targetP, targetS);
-	var targetPath = new Path.Rectangle(targetRect);
-	targetPath.fillColor = '#D26911';
-	targetGroup = new Group([textTarget, targetPath]);
-	console.log(targetGroup.position.x, targetGroup.position.x+300);
+    var targetP = new Point(_pos.width/2-150, 0);
+    var targetS = new Size(300, 5);
+    var targetRect = new Rectangle(targetP, targetS);
+    var targetPath = new Path.Rectangle(targetRect);
+    targetPath.fillColor = '#D26911';
+    targetGroup = new Group([textTarget, targetPath]);
+    console.log(targetGroup.position.x, targetGroup.position.x+300);
 }
 
 function introFrame(){
-	var rect = new Rectangle();
-	rect.left = view.size.width/2 - 240;
-	rect.right = view.size.width/2 + 240;
-	rect.bottom = view.size.height/2 + 30;
-	rect.top = view.size.height/2 - 30;
-	rect = new Path.RoundRectangle(rect, new Size(15, 15));
-	var rectStyle = {
-	    strokeColor: '#ccc',
-	    fillColor: 'white',
-	    strokeWidth: 4
-	};
-	rect.style = rectStyle;
-	var rectText = helper.createText({
-		x: view.size.width/2,
-		y: view.size.height/2+10,
-		color: 'black',
-		fontSize: 18,
-		textAlign: 'center',
-		content: 'Press "enter" to load the balls.'
-	});
-	introBox = new Group([rect, rectText]);
-	introBox.opacity = 0.5;
+    var rect = new Rectangle();
+    rect.left = _pos.width/2 - 240;
+    rect.right = _pos.width/2 + 240;
+    rect.bottom = _pos.height/2 + 30;
+    rect.top = _pos.height/2 - 30;
+    rect = new Path.RoundRectangle(rect, new Size(15, 15));
+    var rectStyle = {
+        strokeColor: '#ccc',
+        fillColor: 'white',
+        strokeWidth: 4
+    };
+    rect.style = rectStyle;
+    var rectText = helper.createText({
+        x: _pos.width/2,
+        y: _pos.height/2+10,
+        color: 'black',
+        fontSize: 18,
+        textAlign: 'center',
+        content: 'Press "enter" to load the balls.'
+    });
+    introBox = new Group([rect, rectText]);
+    introBox.opacity = 0.5;
 }
 
-function gameOver(){
-	targetGroup.visible = false;
-	spaceText.visible = false;
-	state = 7;
-}
-
+/**
+ * Pre-defined animate func. 
+ */
 function onFrame() {
-	if (state == 1 || state == 2){
-		spaceText.visible = true;
-		difficultText.visible = true;
-		for (var i = 0, l = balls.length; i < l; i++)
-			balls[i].iterate(i);
-	}
-	if (state == 4){
-		spaceText.visible = false;
-		difficultText.visible = false;
-		winner.celebrate();
-	}
-	if (state == 6){
-		for (var i = 0, l = balls.length; i < l; i++) {
-			if (balls[i]){
-				balls[i].goTrash(i);
-			}
-		}
-		if (balls.length == 0) 
-			gameOver();
-	}
+    var i = 0, l = balls.length;
+    if (state == 1 || state == 2){
+        for ( ; i < l; i++) {
+            balls[i].iterate(i);
+        }
+    }
+    if (state == 4){
+        winner.celebrate();
+    }
+    if (state == 6){
+        for ( ; i < l; i++) {
+            if (balls[i]){
+                balls[i].goTrash(i);
+            }
+        }
+        if (balls.length === 0) {scenes.seventh();}
+    }
 }
+
+scenes = {
+    first: function(){
+        introFrame();
+        sceneInit();
+    },
+    second: function(){
+        state = 1;
+        introBox.visible = false;
+        introBox.lastChild.content = 'Press "enter" again to start the game.';
+        spaceText.visible = true;
+        difficultText.visible = true;
+        setTimeout(function(){
+            introBox.visible = true;
+        }, 3000);
+    },
+    third: function(){
+        state = 2;
+        prepareTarget();
+        introBox.visible = false;
+    },
+    fourth: function(){
+        state = 4;
+        spaceText.visible = false;
+        difficultText.visible = false;
+    },
+    fifth: function(){
+        winner.celebrateEnd();
+        spaceText.content = 'Press "space" to clear the scene.';
+        spaceText.visible = true;
+        state = 5;
+    },
+    sixth: function(){
+        state = 6;
+    },
+    seventh: function(){
+        targetGroup.visible = false;
+        spaceText.visible = false;
+        state = 7;
+    }
+};
 
 (function(){
-	introFrame();
-	init();
+    scenes.first();
 
-	$(document).addEvent('keyup', function(e){
+    /**
+     * key operations
+     */
+    $(document).addEvent('keyup', function(e){
 
-		switch (e.code) {
-			case 13:
-				if (state == 0){
-					state = 1;
-					introBox.visible = false;
-					introBox.lastChild.content = 'Press "enter" again to start the game.';
-					setTimeout(function(){
-						introBox.visible = true;
-					}, 3000);
-				} else if (state == 1 && introBox.visible){
-					prepareTarget();
-					introBox.visible = false;
-					state = 2;
-				} else {
-					return;
-				}
-				break;
-			case 32:
-				if (state == 2 || state == 3) {
-					state = state == 2 ? 3 : 2;
-				}
-				if (spaceText.visible == true && state == 5) {
-					state = 6;
-				}
-				break;
-			case 188:
-				balls.each(function(item, i){
-					item.gravity = item.gravity - 0.5;
-					item.gravity = item.gravity > 1 ? item.gravity : 1;
-				});
-				break;
-			case 190:
-				balls.each(function(item, i){
-					item.gravity = item.gravity + 0.5;
-					item.gravity = item.gravity > 1 ? item.gravity : 1;
-				});
-				break;
-			default:
-				return false;
-		}
-	})
+        switch (e.code) {
+            case 13:
+                if (state === 0) {scenes.second();}
+                if (state === 1 && introBox.visible) {scenes.third();}
+                break;
+            case 32:
+                if (state === 2 || state === 3) {
+                    state = state === 2 ? 3 : 2;
+                }
+                if (spaceText.visible === true && state === 5) {scenes.sixth();}
+                break;
+            /**
+             * 调整小球撞上壁的难度
+             */
+            case 188:
+                balls.each(function(item, i){
+                    item.gravity = item.gravity - 0.5;
+                    item.gravity = item.gravity > 1 ? item.gravity : 1;
+                });
+                break;
+            case 190:
+                balls.each(function(item, i){
+                    item.gravity = item.gravity + 0.5;
+                    item.gravity = item.gravity > 1 ? item.gravity : 1;
+                });
+                break;
+            default:
+                return false;
+        }
+    });
 
-	DomEvent.add(window, {
-		resize: function(event) {
-			balls.each(function(item, i){
-				item.gravity = 13 - view.size._height / 100 * 1.3;
-				item.gravity = item.gravity > 1 ? item.gravity : 1;
-			});
-		}
-	});
+    DomEvent.add(window, {
+        resize: function(event) {
+            balls.each(function(item, i){
+                item.gravity = 13 - _pos.height / 100 * 1.3;
+                item.gravity = item.gravity > 1 ? item.gravity : 1;
+            });
+        }
+    });
 })();
 
 </script>
 
 <div class="canvas">
-	<canvas resize="true" id="canvas-1" style="background:#f2f2f2" width="100%"></canvas>
+    <canvas resize="true" id="canvas-1" style="background:#f2f2f2" width="100%"></canvas>
 </div>
-		</div>
-	</div>
+        </div>
+    </div>
 </body>
 </html>
