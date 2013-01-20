@@ -8,14 +8,17 @@
 <link rel="stylesheet" href="static/paperscript.css">
 <script src="static/bootstrap.js"></script>
 <script src="static/paper.js"></script>
+<script src="static/store.js"></script>
 </head>
 <body class="fullscreen">
     <div id="main">
         <div id="content">
 
 <script type="text/paperscript" canvas="canvas-1">
-var data = ['王勃','杨炯','卢照邻','骆宾王','陈子昂','张九龄','贺知章','张旭','孟浩然','王维','高适','岑参','王昌龄','王之涣','崔颢','李颀','李白','杜甫','刘长卿','韦应物','李益','卢纶','白居易','刘禹锡','柳宗元','李贺','元稹','张籍','王建','杜牧','李商隐','温庭筠','段成式','韦庄'];
+var userData = ['王勃','杨炯','卢照邻','骆宾王','陈子昂','张九龄','贺知章','张旭','孟浩然','王维','高适','岑参','王昌龄','王之涣','崔颢','李颀','李白','杜甫','刘长卿','韦应物','李益','卢纶','白居易','刘禹锡','柳宗元','李贺','元稹','张籍','王建','杜牧','李商隐','温庭筠','段成式','韦庄'];
+//var userData = store.get('userdata');
 var prizeData = [101, 102, 103, 201, 202, 203, 204, 301, 302, 303, 304];
+//var prizeData = store.get('prizedata');
 
 /*
  * 0: init; 重置/初始化
@@ -216,13 +219,13 @@ var Poker = Base.extend({
 		this.item = path;
 		console.log(path);
 	}
-})
+});
 
 function sceneInit(){
-    for (var i = 0; i < data.length; i++) {
+    for (var i = 0; i < userData.length; i++) {
         var position = Point.create(-20, -20);
         var vector = (Point.random() - [0, 0.5]) * [10, 20];
-        var ball = new Ball(position, vector, data[i]);
+        var ball = new Ball(position, vector, userData[i]);
         balls.push(ball);
     }
 
@@ -395,8 +398,8 @@ scenes = {
 };
 
 (function(){
-    //scenes.first();
-    pokerInit();
+    scenes.first();
+    //pokerInit();
 
     /**
      * key operations
