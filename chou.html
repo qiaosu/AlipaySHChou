@@ -15,6 +15,7 @@
 
 <script type="text/paperscript" canvas="canvas-1">
 var data = ['王勃','杨炯','卢照邻','骆宾王','陈子昂','张九龄','贺知章','张旭','孟浩然','王维','高适','岑参','王昌龄','王之涣','崔颢','李颀','李白','杜甫','刘长卿','韦应物','李益','卢纶','白居易','刘禹锡','柳宗元','李贺','元稹','张籍','王建','杜牧','李商隐','温庭筠','段成式','韦庄'];
+var prizeData = [101, 102, 103, 201, 202, 203, 204, 301, 302, 303, 304];
 
 /*
  * 0: init; 重置/初始化
@@ -22,15 +23,18 @@ var data = ['王勃','杨炯','卢照邻','骆宾王','陈子昂','张九龄','�
  * 2: active; 出现兑奖区,开始抽奖
  * 3: stop; 暂停
  * 4: win_start; 中奖动画开始
- * 5: win_end; 中奖动画结束
- * 6: scene_end; 场景结束
- * 7: over;
+ * 5: win_end_prepare; 中奖动画结束准备
+ * 6: win_end; 中奖动画结束
+ * 7: price_prepare; 准备奖品
+ * 8: price_show; 看奖品
+ * 9: end
  */
 var state = 0,
     helper = {},
     balls = [],
     winner = null,
     group = new Group(),
+    pokers = new Group(),
     targetGroup, 
     spaceText,
     difficultText,
@@ -190,6 +194,30 @@ var Ball = Base.extend({
 
 });
 
+var Poker = Base.extend({
+	initialize: function(point, type){
+		this.point = point;
+		this.radius = 5;
+        this.createPaths();
+        this.item.type = type;
+        pokers.addChild(this.item);
+	},
+	createPaths: function(){
+		var raster = new Raster('poker'), r, path;
+		raster.position = this.point;
+		raster.scale(0.5);
+		r = Math.round(Math.random()*90)-45;
+		raster.rotate(r);
+		path = new Path.Rectangle(this.point - raster.size/2, raster.size);
+		path.scale(0.5)
+		path.rotate(r);
+		path.fillColor = '#333';
+		path.RelatedRaster = raster;
+		this.item = path;
+		console.log(path);
+	}
+})
+
 function sceneInit(){
     for (var i = 0; i < data.length; i++) {
         var position = Point.create(-20, -20);
@@ -215,6 +243,12 @@ function sceneInit(){
     difficultText.visible = false;
 }
 
+function pokerInit(){
+	for (var i=0; i<prizeData.length; i++) {
+		var position = Point.random() * (_pos - [200, 160]) + [80, 50];
+		var poker = new Poker(position, prizeData[i]);
+	}
+}
 
 function prepareTarget(){
     var textTarget = helper.createText({
@@ -281,6 +315,38 @@ function onFrame() {
     }
 }
 
+function onMouseDown(event) {
+	var hitOptions = {
+		segments: true,
+		stroke: true,
+		fill: true,
+		tolerance: 5
+	};
+	var segment = null;
+	var hitResult = project.hitTest(event.point, hitOptions);
+	console.log(hitResult.item);
+	/*if (event.modifiers.shift) {
+		if (hitResult.type == 'segment') {
+			hitResult.segment.remove();
+		};
+		return;
+	}
+
+	if (hitResult) {
+		path = hitResult.item;
+		if (hitResult.type == 'segment') {
+			segment = hitResult.segment;
+		} else if (hitResult.type == 'stroke') {
+			var location = hitResult.location;
+			segment = path.insert(location.index + 1, event.point);
+			path.smooth();
+		}
+	}
+	movePath = hitResult.type == 'fill';
+	if (movePath)
+		project.activeLayer.addChild(hitResult.item);*/
+}
+
 scenes = {
     first: function(){
         introFrame();
@@ -317,13 +383,20 @@ scenes = {
     },
     seventh: function(){
         targetGroup.visible = false;
-        spaceText.visible = false;
+        winner.nameText.remove();
+        spaceText.content = 'Press "enter" to show prize pokers.';
         state = 7;
+    },
+    eighth: function(){
+    	pokerInit();
+    	spaceText.content = 'Click mouse on the poker to choose your prize.'
+    	state = 8;
     }
 };
 
 (function(){
-    scenes.first();
+    //scenes.first();
+    pokerInit();
 
     /**
      * key operations
@@ -334,6 +407,7 @@ scenes = {
             case 13:
                 if (state === 0) {scenes.second();}
                 if (state === 1 && introBox.visible) {scenes.third();}
+                if (state === 7) {scenes.eighth();}
                 break;
             case 32:
                 if (state === 2 || state === 3) {
@@ -375,6 +449,9 @@ scenes = {
 
 <div class="canvas">
     <canvas resize="true" id="canvas-1" style="background:#f2f2f2" width="100%"></canvas>
+</div>
+<div class="resource">
+	<img class="hidden" id="poker" src="static/poker.png" width="260" height="399" />
 </div>
         </div>
     </div>
