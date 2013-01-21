@@ -15,10 +15,14 @@
         <div id="content">
 
 <script type="text/paperscript" canvas="canvas-1">
-var userData = ['王勃','杨炯','卢照邻','骆宾王','陈子昂','张九龄','贺知章','张旭','孟浩然','王维','高适','岑参','王昌龄','王之涣','崔颢','李颀','李白','杜甫','刘长卿','韦应物','李益','卢纶','白居易','刘禹锡','柳宗元','李贺','元稹','张籍','王建','杜牧','李商隐','温庭筠','段成式','韦庄'];
-//var userData = store.get('userdata');
-var prizeData = [101, 102, 103, 201, 202, 203, 204, 301, 302, 303, 304];
-//var prizeData = store.get('prizedata');
+//var userData = ['王勃','杨炯','卢照邻','骆宾王','陈子昂','张九龄','贺知章','张旭','孟浩然','王维','高适','岑参','王昌龄','王之涣','崔颢','李颀','李白','杜甫','刘长卿','韦应物','李益','卢纶','白居易','刘禹锡','柳宗元','李贺','元稹','张籍','王建','杜牧','李商隐','温庭筠','段成式','韦庄'];
+var userData = store.get('userData').split(',');
+console.log(userData);
+//var prizeData = [101, 102, 103, 201, 202, 203, 204, 301, 302, 303, 304];
+var prizeData = store.get('prizeData').split(',');
+console.log(prizeData, prizeData.length);
+
+var resultOutput = store.get('resultOutput');
 
 /*
  * 0: init; 重置/初始化
@@ -43,6 +47,7 @@ var state = 0,
     difficultText,
     introBox,
     scenes,
+    rasters = [],
     _pos = view.size;
 
 helper.createText = function(options){
@@ -75,7 +80,7 @@ var Ball = Base.extend({
             preN: Math.abs(Math.random()*50)
         };
         // 大小
-        this.radius = 50 * 0.2 + 10;
+        this.radius = 50 * 0.2 + 5;
         this.createPaths();
         this.item.name = name;
         group.addChild(this.item);
@@ -172,14 +177,17 @@ var Ball = Base.extend({
     celebrateEnd: function(){
         for (var i = 0, l = balls.length; i < l; i++) {
             balls[i].animate = {
-                n: 50,
-                preN: Math.abs(Math.random()*50)
+                n: 40,
+                preN: (i%6 == 0) ? Math.abs(Math.random()*50) : null
             };
         }
         winner.animate.preN = 0;
     },
 
     goTrash: function(i){
+        if (this.animate.preN === null){
+            this.animate.n = 0;
+        }
         if (this.animate.preN > 0) {
             this.animate.preN--;
             return false;
@@ -188,11 +196,12 @@ var Ball = Base.extend({
             this.item.rotate(5);
             this.item.scale(1.5);
         }
-        this.animate.n = this.animate.n - 1;
         if (this.animate.n === 0) {
             this.item.visible = false;
             balls.splice(i, 1);
+            return false;
         }
+        this.animate.n = this.animate.n - 1;
     }
 
 });
@@ -214,8 +223,11 @@ var Poker = Base.extend({
 		path = new Path.Rectangle(this.point - raster.size/2, raster.size);
 		path.scale(0.5)
 		path.rotate(r);
-		path.fillColor = '#333';
+        path.style = {
+            fillColor : '#333'
+        };
 		path.RelatedRaster = raster;
+        rasters.push(raster);
 		this.item = path;
 		console.log(path);
 	}
@@ -248,8 +260,9 @@ function sceneInit(){
 
 function pokerInit(){
 	for (var i=0; i<prizeData.length; i++) {
-		var position = Point.random() * (_pos - [200, 160]) + [80, 50];
+		var position = Point.random() * (_pos - [240, 220]) + [100, 100];
 		var poker = new Poker(position, prizeData[i]);
+        console.log(prizeData[i]);
 	}
 }
 
@@ -319,6 +332,7 @@ function onFrame() {
 }
 
 function onMouseDown(event) {
+    if (state !== 8) {return false;}
 	var hitOptions = {
 		segments: true,
 		stroke: true,
@@ -327,7 +341,10 @@ function onMouseDown(event) {
 	};
 	var segment = null;
 	var hitResult = project.hitTest(event.point, hitOptions);
-	console.log(hitResult.item);
+    if (hitResult && hitResult.item && hitResult.item.type) {
+        console.log(hitResult.item.type);
+        scenes.ninth(hitResult.item.type);
+    }
 	/*if (event.modifiers.shift) {
 		if (hitResult.type == 'segment') {
 			hitResult.segment.remove();
@@ -392,8 +409,32 @@ scenes = {
     },
     eighth: function(){
     	pokerInit();
+        if (introBox) {
+            introBox.remove();
+        }
     	spaceText.content = 'Click mouse on the poker to choose your prize.'
     	state = 8;
+    },
+    ninth: function(prize){
+        for (var i = 0, l = rasters.length; i < l; i++){
+            if (rasters[i]) {rasters[i].remove();}
+        }
+        pokers.remove();
+        winner.nameText = helper.createText({
+            x: _pos.width/2,
+            y: _pos.height/2,
+            color: 'black',
+            fontSize: 50,
+            content: winner.item.name + ' : ' + prize,
+            textAlign: 'center'
+        });
+        state = 9;
+        userData.splice(userData.indexOf(winner.item.name),1);
+        prizeData.splice(prizeData.indexOf(prize),1);
+        console.log(userData, userData.length, prizeData, prizeData.length);
+        store.set("userData", userData.join(','));
+        store.set("prizeData", prizeData.join(','));
+        store.set("resultOutput", resultOutput+winner.nameText.content+';')
     }
 };
 
