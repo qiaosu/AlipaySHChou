@@ -16,12 +16,12 @@
 
 <script type="text/paperscript" canvas="canvas-1">
 //var userData = ['王勃','杨炯','卢照邻','骆宾王','陈子昂','张九龄','贺知章','张旭','孟浩然','王维','高适','岑参','王昌龄','王之涣','崔颢','李颀','李白','杜甫','刘长卿','韦应物','李益','卢纶','白居易','刘禹锡','柳宗元','李贺','元稹','张籍','王建','杜牧','李商隐','温庭筠','段成式','韦庄'];
-var userData = store.get('userData').split(',');
+var userData = store.get('userData') ? store.get('userData').split(',') : [];
 console.log(userData);
 //var prizeData = [101, 102, 103, 201, 202, 203, 204, 301, 302, 303, 304];
-var prizeData = store.get('prizeData').split(',');
+var prizeData = store.get('prizeData') ? store.get('prizeData').split(',') : [];
 console.log(prizeData, prizeData.length);
-
+var prizeMapData = store.get('prizeMapData');
 var resultOutput = store.get('resultOutput');
 
 /*
@@ -59,6 +59,31 @@ helper.createText = function(options){
     if (options.textAlign) {text.paragraphStyle.justification = options.textAlign;}
     text.content = options.content;
     return text;
+};
+
+helper.onlyFirstPrize = function(arr){
+    var _arr = arr;
+    for (var i = 0, l = _arr.length; i < l ; i++ ) {
+        if (_arr[i][0] != '1') return false;
+    }
+    return true;
+};
+
+helper.isNdc = function(name){
+    var _data = store.get("ndcData").split(',');
+    if (_data.indexOf(name) == -1) return false;
+    return true;
+};
+
+helper.prizeExchange = function(prize){
+    if (prize[0] != '1') return false;
+    var _data, _target;
+    do {
+        _data = prizeData;
+        _target = _data[Math.floor(Math.random()*_data.length)]
+    }
+    while (_target[0] == '1')
+    return _target;
 };
 
 var Ball = Base.extend({
@@ -106,6 +131,7 @@ var Ball = Base.extend({
     },
 
     iterate: function(i) {
+        var _check = false;
         if (this.item.visible === false) {return false;}
         if (this.animate.preN > 0) {
             this.animate.preN--;
@@ -135,6 +161,14 @@ var Ball = Base.extend({
         
         if (collisionX && targetGroup && _pos.width/2 -150 <= collisionX && collisionX <= _pos.width/2 + 150) {
             this.item.position = this.point = Point.create(collisionX, this.radius);
+            //first check 
+            do {
+                _check = this.checkAvailable(this.item.name);
+                if (_check == false) {
+                    this.randomExchange(this);
+                } 
+            }
+            while (_check == false)
             winner = this;
             scenes.fourth();
         } else {
@@ -143,10 +177,30 @@ var Ball = Base.extend({
         this.item.rotate(this.vector.x / 2);
     },
 
+    checkAvailable: function(name){
+        var _name = name;
+        var _unvailableList = store.get('managerData').split(',');
+        if (helper.onlyFirstPrize(prizeData)) {
+            _unvailableList = _unvailableList.concat(store.get('ndcData').split(','));
+        }
+        if (_unvailableList.indexOf(_name) != -1) return false;
+        return true;
+    },
+
+    randomExchange: function(){
+        console.log('randomExchange start');
+
+        var _target = balls[Math.floor(Math.random()*balls.length)], _tmp;
+        _tmp = _target.item.name;
+        _target.item.name = this.item.name;
+        this.item.name = _tmp;
+        console.log('randomExchange done', this.item.name, _target.item.name);
+    },
+
     computeCollision: function(prev, next) {
         var x = Math.abs(prev.y - this.radius) / (Math.abs(next.y - this.radius) + Math.abs(prev.y - this.radius));
         var collisionTarget = prev.x + (next.x - prev.x) * x;
-        console.log('碰撞', prev, next, collisionTarget);
+        //console.log('碰撞', prev, next, collisionTarget);
         return collisionTarget;
     },
 
@@ -178,7 +232,7 @@ var Ball = Base.extend({
         for (var i = 0, l = balls.length; i < l; i++) {
             balls[i].animate = {
                 n: 40,
-                preN: (i%6 == 0) ? Math.abs(Math.random()*50) : null
+                preN: (i%10 == 0) ? Math.abs(Math.random()*40) : null
             };
         }
         winner.animate.preN = 0;
@@ -229,7 +283,6 @@ var Poker = Base.extend({
 		path.RelatedRaster = raster;
         rasters.push(raster);
 		this.item = path;
-		console.log(path);
 	}
 });
 
@@ -262,7 +315,6 @@ function pokerInit(){
 	for (var i=0; i<prizeData.length; i++) {
 		var position = Point.random() * (_pos - [240, 220]) + [100, 100];
 		var poker = new Poker(position, prizeData[i]);
-        console.log(prizeData[i]);
 	}
 }
 
@@ -280,10 +332,12 @@ function prepareTarget(){
     var targetPath = new Path.Rectangle(targetRect);
     targetPath.fillColor = '#D26911';
     targetGroup = new Group([textTarget, targetPath]);
-    console.log(targetGroup.position.x, targetGroup.position.x+300);
+    //console.log(targetGroup.position.x, targetGroup.position.x+300);
 }
 
 function introFrame(){
+    var _content = 'Press "enter" to load the balls.';
+    if (prizeData.length == 0 || userData.length == 0) {_content = '抽奖已结束。'}
     var rect = new Rectangle();
     rect.left = _pos.width/2 - 240;
     rect.right = _pos.width/2 + 240;
@@ -302,7 +356,7 @@ function introFrame(){
         color: 'black',
         fontSize: 18,
         textAlign: 'center',
-        content: 'Press "enter" to load the balls.'
+        content: _content
     });
     introBox = new Group([rect, rectText]);
     introBox.opacity = 0.5;
@@ -342,7 +396,7 @@ function onMouseDown(event) {
 	var segment = null;
 	var hitResult = project.hitTest(event.point, hitOptions);
     if (hitResult && hitResult.item && hitResult.item.type) {
-        console.log(hitResult.item.type);
+        //console.log(hitResult.item.type);
         scenes.ninth(hitResult.item.type);
     }
 	/*if (event.modifiers.shift) {
@@ -370,6 +424,9 @@ function onMouseDown(event) {
 scenes = {
     first: function(){
         introFrame();
+        if (prizeData.length == 0 || userData.length == 0) {
+            state = 9999;
+        }
         sceneInit();
     },
     second: function(){
@@ -416,25 +473,40 @@ scenes = {
     	state = 8;
     },
     ninth: function(prize){
+        //second check
+        if (helper.isNdc(winner.item.name) && prize[0] == '1') {
+            prize = helper.prizeExchange(prize);
+        }
+        if (prizeData.length > 8 && prize[0] == '1') {
+            prize = helper.prizeExchange(prize);
+        }
         for (var i = 0, l = rasters.length; i < l; i++){
             if (rasters[i]) {rasters[i].remove();}
         }
         pokers.remove();
         winner.nameText = helper.createText({
             x: _pos.width/2,
-            y: _pos.height/2,
+            y: _pos.height/2 - 50,
             color: 'black',
             fontSize: 50,
-            content: winner.item.name + ' : ' + prize,
+            content: winner.item.name + ' : ',
+            textAlign: 'center'
+        });
+        winner.nameText_2 = helper.createText({
+            x: _pos.width/2,
+            y: _pos.height/2 + 50,
+            color: 'black',
+            fontSize: 50,
+            content: prizeMapData[prize],
             textAlign: 'center'
         });
         state = 9;
         userData.splice(userData.indexOf(winner.item.name),1);
         prizeData.splice(prizeData.indexOf(prize),1);
-        console.log(userData, userData.length, prizeData, prizeData.length);
+        //console.log(userData, userData.length, prizeData, prizeData.length);
         store.set("userData", userData.join(','));
         store.set("prizeData", prizeData.join(','));
-        store.set("resultOutput", resultOutput+winner.nameText.content+';')
+        store.set("resultOutput", resultOutput+winner.item.name+': '+prizeMapData[prize]+';')
     }
 };
 

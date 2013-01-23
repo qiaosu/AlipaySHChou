@@ -16,9 +16,11 @@
 <body class="fullscreen">
     <div id="main">
         <div id="content">
+       		暂无抽奖结果。
 <script>
 
 var result = store.get('resultOutput');
+if (!result) return false;
 result = result.replace(/\;/g, ';<br/>');
 
 document.body.innerHTML = result;
