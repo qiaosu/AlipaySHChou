@@ -61,10 +61,15 @@ helper.createText = function(options){
     return text;
 };
 
-helper.onlyFirstPrize = function(arr){
+helper.hasNdcPrize = function(arr){
     var _arr = arr;
+    /*
     for (var i = 0, l = _arr.length; i < l ; i++ ) {
         if (_arr[i][0] != '1') return false;
+    }
+    */
+    for (var i = 0, l = _arr.length; i < l ; i++ ) {
+        if (_arr[i][0] == '4') return false;
     }
     return true;
 };
@@ -75,7 +80,18 @@ helper.isNdc = function(name){
     return true;
 };
 
-helper.prizeExchange = function(prize){
+helper.prizeNdcExchange = function(prize){
+    if (prize[0] == '4') return false;
+    var _data, _target;
+    do {
+        _data = prizeData;
+        _target = _data[Math.floor(Math.random()*_data.length)]
+    }
+    while (_target[0] != '4')
+    return _target;
+};
+
+helper.prizeTopExchange = function(prize){
     if (prize[0] != '1') return false;
     var _data, _target;
     do {
@@ -180,7 +196,7 @@ var Ball = Base.extend({
     checkAvailable: function(name){
         var _name = name;
         var _unvailableList = store.get('managerData').split(',');
-        if (helper.onlyFirstPrize(prizeData)) {
+        if (helper.hasNdcPrize(prizeData)) {
             _unvailableList = _unvailableList.concat(store.get('ndcData').split(','));
         }
         if (_unvailableList.indexOf(_name) != -1) return false;
@@ -474,11 +490,11 @@ scenes = {
     },
     ninth: function(prize){
         //second check
-        if (helper.isNdc(winner.item.name) && prize[0] == '1') {
-            prize = helper.prizeExchange(prize);
+        if (helper.isNdc(winner.item.name) && prize[0] != '4') {
+            prize = helper.prizeNdcExchange(prize);
         }
         if (prizeData.length > 8 && prize[0] == '1') {
-            prize = helper.prizeExchange(prize);
+            prize = helper.prizeTopExchange(prize);
         }
         for (var i = 0, l = rasters.length; i < l; i++){
             if (rasters[i]) {rasters[i].remove();}
