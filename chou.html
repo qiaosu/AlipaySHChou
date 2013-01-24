@@ -81,7 +81,7 @@ helper.isNdc = function(name){
 };
 
 helper.prizeNdcExchange = function(prize){
-    if (prize[0] == '4') return false;
+    //if (prize[0] == '4') return false;
     var _data, _target;
     do {
         _data = prizeData;
@@ -522,7 +522,7 @@ scenes = {
         //console.log(userData, userData.length, prizeData, prizeData.length);
         store.set("userData", userData.join(','));
         store.set("prizeData", prizeData.join(','));
-        store.set("resultOutput", resultOutput+winner.item.name+': '+prizeMapData[prize]+';')
+        store.set("resultOutput", resultOutput+winner.item.name+': '+prizeMapData[prize]+'/'+prize+';')
     }
 };
 
